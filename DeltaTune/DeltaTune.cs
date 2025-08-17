@@ -48,7 +48,7 @@ namespace DeltaTune
             settingsFile = new SettingsFile(settingsService, Path.Combine(relativePathRoot, "Settings.json"));
             settingsMenu = new SettingsMenu(settingsService);
             
-            mediaInfoService = new SystemMediaInfoService();
+            mediaInfoService = new SystemMediaInfoService(new MediaFilter());
             
             base.Initialize();
         }
@@ -75,7 +75,7 @@ namespace DeltaTune
             windowService.InitializeWindow();
 
             Vector2 WindowSizeProvider() => new Vector2(graphicsDeviceManagerInstance.GraphicsDevice.Viewport.Width, graphicsDeviceManagerInstance.GraphicsDevice.Viewport.Height);
-            displayService = new DisplayService(mediaInfoService, settingsService, musicTitleFont, WindowSizeProvider);
+            displayService = new DisplayService(mediaInfoService, settingsService, new MediaFormatter(settingsService), musicTitleFont, WindowSizeProvider);
             displayService.BeginRun();
             
             base.BeginRun();

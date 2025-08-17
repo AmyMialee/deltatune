@@ -13,6 +13,7 @@ namespace DeltaTune.Display
         
         private readonly IMediaInfoService mediaInfoService;
         private readonly ISettingsService settingsService;
+        private readonly IMediaFormatter mediaFormatter;
         private readonly Func<Vector2> windowSizeProvider;
         private readonly BitmapFont musicTitleFont;
         
@@ -22,12 +23,13 @@ namespace DeltaTune.Display
 
         private double lastMediaInfoUpdateTime;
         
-        public DisplayService(IMediaInfoService mediaInfoService, ISettingsService settingsService, BitmapFont musicTitleFont, Func<Vector2> windowSizeProvider)
+        public DisplayService(IMediaInfoService mediaInfoService, ISettingsService settingsService, IMediaFormatter mediaFormatter, BitmapFont musicTitleFont, Func<Vector2> windowSizeProvider)
         {
             this.mediaInfoService = mediaInfoService;
             this.settingsService = settingsService;
             this.musicTitleFont = musicTitleFont;
             this.windowSizeProvider = windowSizeProvider;
+            this.mediaFormatter = mediaFormatter;
         }
 
         public void BeginRun()
@@ -119,8 +121,11 @@ namespace DeltaTune.Display
             
             primaryDisplay.Update(gameTime);
             secondaryDisplay.Update(gameTime);
-            
-            primaryDisplay.Content = currentMediaInfo;
+
+            if (primaryDisplay.State != MusicTitleDisplayState.Disappearing && primaryDisplay.State != MusicTitleDisplayState.Hidden)
+            {
+                primaryDisplay.Text = mediaFormatter.Format(currentMediaInfo);
+            }
         }
         
         public void Draw(SpriteBatch spriteBatch, GameTime gameTime)

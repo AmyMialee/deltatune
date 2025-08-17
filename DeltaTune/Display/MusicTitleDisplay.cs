@@ -12,16 +12,16 @@ namespace DeltaTune.Display
 {
     public class MusicTitleDisplay : IMusicTitleDisplay, IDisposable
     {
-        public MediaInfo Content
+        public string Text
         {
-            get => content;
+            get => text;
             set
             {
-                content = value;
+                text = value;
                 UpdateText();
             }
         }
-        
+
         public MusicTitleDisplayState State
         {
             get => state;
@@ -167,36 +167,7 @@ namespace DeltaTune.Display
         {
             if (State == MusicTitleDisplayState.Disappearing || State == MusicTitleDisplayState.Hidden) return;
             
-            if (settingsService.ShowPlaybackStatus.Value)
-            {
-                switch (Content.Status)
-                {
-                    case PlaybackStatus.Playing:
-                        text = $"♪~   {GetTextString()}";
-                        break;
-                    case PlaybackStatus.Paused:
-                        text = $"⏸~   {GetTextString()}";
-                        break;
-                }
-            }
-            else
-            {
-                text = $"♪~   {GetTextString()}";
-            }
-            
             textSize = font.MeasureString(text);
-        }
-
-        private string GetTextString()
-        {
-            if (settingsService.ShowArtistName.Value)
-            {
-                return $"{Content.Artist} - {Content.Title}";
-            }
-            else
-            {
-                return $"{Content.Title}";
-            }
         }
 
         private void UpdatePosition()

@@ -7,14 +7,16 @@ namespace DeltaTune.Media
 {
     public class SystemMediaInfoService : IMediaInfoService, IDisposable
     {
+        private readonly IMediaFilter mediaFilter;
+
         public ConcurrentQueue<MediaInfo> UpdateQueue { get; }
-        
         private GlobalSystemMediaTransportControlsSessionManager currentSessionManager;
         private GlobalSystemMediaTransportControlsSession currentSession;
         private MediaInfo lastMediaInfo;
         
-        public SystemMediaInfoService()
+        public SystemMediaInfoService(IMediaFilter mediaFilter)
         {
+            this.mediaFilter = mediaFilter;
             UpdateQueue = new ConcurrentQueue<MediaInfo>();
             
             Task.Run(async () =>
@@ -29,16 +31,23 @@ namespace DeltaTune.Media
         
         public bool IsCurrentlyStopped()
         {
+            if (currentSessionManager == null) return true;
+            
             lock (currentSessionManager)
             {
                 if (currentSessionManager == null || currentSession == null) return true;
+                
+                var systemPlaybackInfo = currentSession.GetPlaybackInfo();
+                if (systemPlaybackInfo == null) return true;
             
-                return PlaybackStatusHelper.FromSystemPlaybackStatus(currentSession.GetPlaybackInfo().PlaybackStatus) == PlaybackStatus.Stopped;
+                return PlaybackStatusHelper.FromSystemPlaybackStatus(systemPlaybackInfo.PlaybackStatus) == PlaybackStatus.Stopped;
             }
         }
         
         private void OnCurrentSessionChanged(GlobalSystemMediaTransportControlsSessionManager sessionManager, CurrentSessionChangedEventArgs args)
         {
+            if (currentSessionManager == null) return;
+            
             lock (currentSessionManager)
             {
                 if (currentSession != null)
@@ -46,6 +55,8 @@ namespace DeltaTune.Media
                     currentSession.MediaPropertiesChanged -= OnMediaPropertiesChanged;
                     currentSession.PlaybackInfoChanged -= OnPlaybackInfoChanged;
                 }
+                
+                currentSessionManager = sessionManager;
             
                 GlobalSystemMediaTransportControlsSession session = sessionManager.GetCurrentSession();
                 currentSession = session;
@@ -65,13 +76,9 @@ namespace DeltaTune.Media
             try
             {
                 MediaInfo? newMediaInfo = GetCurrentMediaInfo(sender).Result;
-                if (newMediaInfo != null && (newMediaInfo.Value.Title != lastMediaInfo.Title || newMediaInfo.Value.Artist != lastMediaInfo.Artist))
+                if (newMediaInfo != null && !newMediaInfo.Value.Equals(lastMediaInfo))
                 {
-                    // Reject updates with empty title or artist
-                    if (newMediaInfo.Value.Title == string.Empty || newMediaInfo.Value.Artist == string.Empty)
-                    {
-                        return;
-                    }
+                    if(!mediaFilter.Passing(newMediaInfo.Value)) return;
                     
                     UpdateQueue.Enqueue(newMediaInfo.Value);
                     lastMediaInfo = newMediaInfo.Value;
@@ -99,11 +106,7 @@ namespace DeltaTune.Media
                     
                     MediaInfo update = new MediaInfo(lastMediaInfo.Title, lastMediaInfo.Artist, newStatus);
 
-                    // Reject updates with empty title or artist
-                    if (update.Title == string.Empty || update.Artist == string.Empty)
-                    {
-                        return;
-                    }
+                    if(!mediaFilter.Passing(update)) return;
 
                     UpdateQueue.Enqueue(update);
                     lastMediaInfo = update;
@@ -118,30 +121,7 @@ namespace DeltaTune.Media
         private async Task<MediaInfo?> GetCurrentMediaInfo(GlobalSystemMediaTransportControlsSession session)
         {
             GlobalSystemMediaTransportControlsSessionMediaProperties mediaProperties = await session.TryGetMediaPropertiesAsync();
-
-            string correctedArtist = mediaProperties.Artist.Trim();
-            string correctedTitle = mediaProperties.Title.Trim();
-
-            // Remove YouTube's "- Topic" suffix
-            if (correctedArtist.EndsWith(" - Topic"))
-            {
-                correctedArtist = correctedArtist.Substring(0, correctedArtist.Length - 8);
-            }
-
-            // Remove artist prefix from the title if it exists
-            if (correctedTitle.StartsWith($"{correctedArtist} - "))
-            {
-                correctedTitle = correctedTitle.Remove(0, $"{correctedArtist} - ".Length);
-            }
-
-            // Remove artist suffix from the title if it exists
-            if (correctedTitle.EndsWith($" - {correctedArtist}"))
-            {
-                int startIndex = correctedTitle.LastIndexOf($" - {correctedArtist}", StringComparison.Ordinal);
-                correctedTitle = correctedTitle.Remove(startIndex);
-            }
-
-            return new MediaInfo(correctedTitle, correctedArtist, lastMediaInfo.Status);
+            return new MediaInfo(mediaProperties.Title, mediaProperties.Artist, lastMediaInfo.Status);
         }
 
         public void Dispose()
