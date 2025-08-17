@@ -19,8 +19,12 @@ namespace DeltaTune.Media
             stringBuilder.Clear();
             
             bool hasArtist = mediaInfo.Artist != string.Empty;
+            bool hasTitle = mediaInfo.Title != string.Empty;
 
-            mediaInfo.Title = mediaInfo.Title.Trim();
+            if (hasTitle)
+            {
+                mediaInfo.Title = mediaInfo.Title.Trim();
+            }
             
             if (hasArtist)
             {
@@ -31,7 +35,10 @@ namespace DeltaTune.Media
                 {
                     mediaInfo.Artist = mediaInfo.Artist.Substring(0, mediaInfo.Artist.Length - 8);
                 }
+            }
 
+            if (hasArtist && hasTitle)
+            {
                 // Remove artist prefix from the title if it exists
                 if (mediaInfo.Title.StartsWith($"{mediaInfo.Artist} - "))
                 {
@@ -57,16 +64,21 @@ namespace DeltaTune.Media
             
             if (hasArtist && settingsService.ShowArtistName.Value)
             {
-                stringBuilder.Append($"{mediaInfo.Artist} - ");
+                stringBuilder.Append($"{mediaInfo.Artist}");
+
+                if (hasTitle) stringBuilder.Append(" - ");
             }
 
-            // Remove BandCamp's playback status prefix
-            if (mediaInfo.Title.StartsWith("▶︎ "))
+            if (hasTitle)
             {
-                mediaInfo.Title = mediaInfo.Title.Remove(0, "▶︎ ".Length);
-            }
+                // Remove BandCamp's playback status prefix
+                if (mediaInfo.Title.StartsWith("▶︎ "))
+                {
+                    mediaInfo.Title = mediaInfo.Title.Remove(0, "▶︎ ".Length);
+                }
             
-            stringBuilder.Append(mediaInfo.Title);
+                stringBuilder.Append(mediaInfo.Title);
+            }
             
             return stringBuilder.ToString();
         }
