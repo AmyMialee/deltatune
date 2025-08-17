@@ -59,6 +59,12 @@ namespace DeltaTune.Media
             {
                 stringBuilder.Append($"{mediaInfo.Artist} - ");
             }
+
+            // Remove BandCamp's playback status prefix
+            if (mediaInfo.Title.StartsWith("▶︎ "))
+            {
+                mediaInfo.Title = mediaInfo.Title.Remove(0, "▶︎ ".Length);
+            }
             
             stringBuilder.Append(mediaInfo.Title);
             
